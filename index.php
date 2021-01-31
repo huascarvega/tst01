@@ -18,8 +18,7 @@ $allow_show_folders = true; // Set to false to hide all subdirectories
 
 $disallowed_patterns = ['*.php'];  // must be an array.  Matching files not allowed to be uploaded
 $hidden_patterns = ['*.php','.*']; // Matching files hidden in directory index
-
-# HV putting the key
+// HV putting the key
 $PASSWORD = 'password';  // Set the password, to access the file manager... (optional)
 
 if($PASSWORD) {
@@ -32,7 +31,7 @@ if($PASSWORD) {
 			$_SESSION['_sfm_allowed'] = true;
 			header('Location: ?');
 		}
-		# HV Putting a better message to user (Password input form changes)
+		// HV Putting a better message to user
 		echo '<html><body><form action=? method=post>Please enter your password:<input type=password name=p autofocus/></form></body></html>';
 		exit;
 	}
@@ -130,6 +129,29 @@ if($_GET['do'] == 'list') {
 		strpos('MSIE',$_SERVER['HTTP_REFERER']) ? rawurlencode($filename) : "\"$filename\"" ));
 	ob_flush();
 	readfile($file);
+	exit;
+} elseif ($_GET['do'] == 'renam') {
+	// HV (Rename option added)
+	foreach($disallowed_patterns as $pattern)
+		if(fnmatch($pattern, $file))
+			err(403,"Files of this type are not allowed.");
+
+	$filename = basename($file);
+	// HV search only names with ToBe string
+	if(fnmatch("*ToBe*.txt", $file)) {
+		// HV building the new name
+		$nombre = explode("ToBe", $file);
+		$newfilename = $nombre[0].$nombre[1];
+		if (!rename($filename,$newfilename))
+			err(403,"File rename ṕrocess abort.");
+		echo "<h2>Rename process successful<h2><br>";
+		echo '<button  onclick="javascript:window.history.back();" autofocus >
+			Press if you want to return last page
+			</button>' ;
+		
+	} else
+		err(403,"Files with out \"ToBe\" string not allowed.");
+
 	exit;
 }
 
@@ -256,6 +278,11 @@ a.delete {display:inline-block;
 	background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAB2klEQVR4nJ2ST2sTQRiHn5mdmj92t9XmUJIWJGq9NHrRgxQiCtqbl97FqxgaL34CP0FD8Qv07EHEU0Ew6EXEk6ci8Q9JtcXEkHR3k+zujIdUqMkmiANzmJdnHn7vzCuIWbe291tSkvhz1pr+q1L2bBwrRgvFrcZKKinfP9zI2EoKmm7Azstf3V7fXK2Wc3ujvIqzAhglwRJoS2ImQZMEBjgyoDS4hv8QGHA1WICvp9yelsA7ITBTIkwWhGBZ0Iv+MUF+c/cB8PTHt08snb+AGAACZDj8qIN6bSe/uWsBb2qV24/GBLn8yl0plY9AJ9NKeL5ICyEIQkkiZenF5XwBDAZzWItLIIR6LGfk26VVxzltJ2gFw2a0FmQLZ+bcbo/DPbcd+PrDyRb+GqRipbGlZtX92UvzjmUpEGC0JgpC3M9dL+qGz16XsvcmCgCK2/vPtTNzJ1x2kkZIRBSivh8Z2Q4+VkvZy6O8HHvWyGyITvA1qndNpxfguQNkc2CIzM0xNk5QLedCEZm1VKsf2XrAXMNrA2vVcq4ZJ4DhvCSAeSALXASuLBTW129U6oPrT969AK4Bq0AeWARs4BRgieMUEkgDmeO9ANipzDnH//nFB0KgAxwATaAFeID5DQNatLGdaXOWAAAAAElFTkSuQmCC) no-repeat scroll 0px 5px;
 	padding:4px 0 4px 20px;
 }
+.rename {
+	background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAABAklEQVRIie2UMW6DMBSG/4cYkJClIhauwMgx8CnSC9EjJKcwd2HGYmAwEoMREtClEJxYakmcoWq/yX623veebZmWZcFKWZbXyTHeOeeXfWDN69/uzPP8x1mVUmiaBlLKsxACAC6cc2OPd7zYK1EUYRgGZFkG3/fPAE5fIjcCAJimCXEcGxKnAiICERkSIcQmeVoQhiHatoWUEkopJEkCAB/r+t0lHyVN023c9z201qiq6s2ZYA9jDIwx1HW9xZ4+Ihta69cK9vwLvsX6ivYf4FGIyJj/rg5uqwccd2Ar7OUdOL/kPyKY5/mhZJ53/2asgiAIHhLYMARd16EoCozj6EzwCYrrX5dC9FQIAAAAAElFTkSuQmCC)no-repeat scroll 0px 5px;
+	padding:4px 0 4px 20px;
+}
+
 </style>
 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
 <script>
@@ -417,6 +444,9 @@ $(function(){
         	if (!data.is_dir && !allow_direct_link)  $link.css('pointer-events','none');
 		var $dl_link = $('<a/>').attr('href','?do=download&file='+ encodeURIComponent(data.path))
 			.addClass('download').text('download');
+		// HV to put rename button action
+		var $xdl_link = $('<a/>').attr('href','?do=renam&file='+ encodeURIComponent(data.path))
+			.addClass('rename').text('rename');
 		var $delete_link = $('<a href="#" />').attr('data-file',data.path).addClass('delete').text('delete');
 		var perms = [];
 		if(data.is_readable) perms.push('read');
@@ -430,6 +460,7 @@ $(function(){
 			.append( $('<td/>').attr('data-sort',data.mtime).text(formatTimestamp(data.mtime)) )
 			.append( $('<td/>').text(perms.join('+')) )
 			.append( $('<td/>').append($dl_link).append( data.is_deleteable ? $delete_link : '') )
+			.append( $('<td/>').append($xdl_link).append( data.is_deleteable ? $delete_link : '') )
 		return $html;
 	}
 	function renderBreadcrumbs(path) {
@@ -446,7 +477,7 @@ $(function(){
 		return $html;
 	}
 	function formatTimestamp(unix_timestamp) {
-		# HV Putting long version month (Modified column changes)
+		// HV Putting long version month (Modified column changes)
 		var m = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'October', 'December'];
 		var d = new Date(unix_timestamp*1000);
 		return [m[d.getMonth()],' ',d.getDate(),', ',d.getFullYear()," ",
